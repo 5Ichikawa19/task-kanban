@@ -13,10 +13,13 @@ Next.js + Supabaseで構築し、Vercelにデプロイする。
 
 ## ディレクトリ構成
 src/
-└ app/			# ページとレイアウト
-    ├ page.tsx	# トップページ
-    ├ layout.tsx	# 共通レイアウト
-    └ globals.css	# グローバルスタイル
+├ app/			# ページとレイアウト
+│  ├ page.tsx	# トップページ
+│  ├ layout.tsx	# 共通レイアウト
+│  └ globals.css	# グローバルスタイル
+├ lib/
+│  └ supabase.ts	# Supabase クライアント
+└ instrumentation.ts	# サーバー起動時の Supabase 接続チェック
 
 ## コマンド
 
@@ -38,6 +41,19 @@ npx vitest run -t "テスト名"              # テスト名で絞り込み
 - **Tailwind CSS v4 は PostCSS ではなく Turbopack ローダー経由**で読み込んでいる（`next.config.ts` の `turbopack.rules` で `*.css` に `@tailwindcss/turbopack` を適用）。`postcss.config` は存在しない。テーマ変数は `src/app/globals.css` の `@theme inline` で定義。
 - `next.config.ts` で `cacheComponents: true` と `partialPrefetching: true` を有効化している。データ取得やキャッシュの書き方はこれらの前提に従うこと（詳細は同梱ドキュメント参照）。
 - `LayoutProps<"/">` などのルート型はグローバルに生成される型ヘルパーを使っている（import 不要）。
+
+## Supabase
+
+- プロジェクト: `task-kanban`（project ref: `fmvvwvwlctbyjmsdnixv`、リージョン: `ap-northeast-1`）。スキーマ確認・マイグレーション・型生成は Supabase MCP で行う。
+- 環境変数（キー名は `.env.example`、実際の値は `.env.local`。`.env.local` はコミットしない）:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` … 新しい形式の publishable key（`sb_publishable_...`）。旧形式の anon key（`NEXT_PUBLIC_SUPABASE_ANON_KEY`）は使わない。
+- クライアントは `@supabase/supabase-js` の `createClient` で作った `supabase`（`@/lib/supabase`）を使う。新しいクライアントを作らず、これを import する。環境変数が未設定ならモジュール読み込み時に例外を投げる。
+  - `@supabase/ssr` は未導入（Cookie を使う認証は未対応）。認証を追加するときに導入を検討する。
+- `src/instrumentation.ts` の `register()` がサーバー起動時に一度だけ接続を確認する。失敗したときだけ `console.error` で `[Supabase] ...` を出し、成功時は何も出さない。
+  - 確認には `/auth/v1/health` を使う（publishable key では `/rest/v1/` のルートが 401 になるため）。わかるのは「URL に届くか」と「キーが有効か」までで、DB のテーブルへのアクセスは確かめない。
+- publishable key はブラウザにも公開される前提のキー。テーブルを作るときは RLS を有効にし、ポリシーでアクセスを制御する。
+- テストで Supabase を使うコンポーネントは `@/lib/supabase` をモックする（外部依存のみモック化の方針に従う）。
 
 ## テスト
 
