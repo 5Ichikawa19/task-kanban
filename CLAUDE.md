@@ -65,6 +65,39 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
   - ダークモードは `.dark` クラスではなく `@media (prefers-color-scheme: dark)` で切り替える。`@custom-variant dark (&:is(.dark *))` は書かない（既存の `dark:` スタイルが効かなくなるため）。
   - `--font-sans` / `--font-heading` は `layout.tsx` の `--font-geist-sans` を参照する（CLI は `var(--font-sans)` と自分自身を参照させてしまう）。
 
+## デザインルール
+
+- **部品**: ボタン・入力欄・ダイアログなどは shadcn/ui のコンポーネントを使う。素の `<button>` / `<input>` に Tailwind を当てて作らない。
+  - 現在使っているもの: Card / Input / Textarea / Label / NativeSelect / AlertDialog / Badge / Button
+  - ステータス選択は `Select` ではなく `NativeSelect`（中身はネイティブ `<select>`）を使う。テストの `user.selectOptions` と `HTMLSelectElement.value` をそのまま使えるようにするため
+- **色**: テーマ変数のユーティリティ（`bg-card` / `bg-muted` / `text-muted-foreground` / `text-destructive` / `ring-foreground/10` など）を使う。`zinc-*` などのパレット色を直接書かない。
+  - テーマ変数はダークモードで自動で切り替わるので、`dark:` は透明度の調整など必要なときだけ付ける
+  - 例外はステータスのアクセントカラー（Todo=sky / In Progress=amber / Done=emerald）。`TaskBoard.tsx` の `statusAccents`（`Record<TaskStatus, ...>`）にまとめ、パレット色を使うので `dark:` も必ず付ける
+- **面の重なり**（奥から手前へ）:
+  - ページ: `bg-muted/30`（ダークは `bg-background`）、ヘッダーは `border-b bg-background/80 backdrop-blur`
+  - 列: `rounded-xl bg-muted/60 ring-1 ring-foreground/5`（ダークは `bg-muted/30`）、上端にアクセントカラーの帯
+  - カード: `rounded-xl bg-card ring-1 ring-foreground/10 shadow-xs`、ホバーで `shadow-md`
+  - 枠は `border` ではなく `ring-1` で付ける（shadcn/ui の Card とそろえる）。角丸はコンテナが `rounded-xl`、部品は shadcn/ui の既定のまま
+- **ボタンの使い分け**:
+  - 主な操作（追加・保存）: `variant="default"`
+  - 副次的な操作（キャンセル）: `variant="outline"`
+  - 取り消せない操作（削除の確定）: `variant="destructive"`
+  - カード内の操作（編集・削除）: `variant="ghost" size="icon-sm"` + lucide アイコン。文字がないので `aria-label` を必ず付ける
+  - カード内の操作ボタンは md 以上ではホバー・フォーカス時だけ表示する（`group-hover/task` / `group-focus-within/task`）。タッチ操作のモバイルでは常に表示する
+- **アイコン**: lucide-react を使う。飾りのアイコンには `aria-hidden="true"` を付ける。
+- **文字**: 見出しは `font-semibold`、補足は `text-sm text-muted-foreground`、件数などの数字は `tabular-nums`。
+- **状態の表示**:
+  - 空: 破線の枠（`border-dashed`）+ アイコン + 文言
+  - 読み込み中: `animate-pulse` の `bg-muted` のプレースホルダー + `sr-only` の「読み込み中…」
+  - エラー: `role="alert"` + `text-sm text-destructive`
+- **レイアウト**:
+  - 本文の幅は `max-w-7xl`、左右の余白は `px-4 sm:px-6`。列は `md:grid-cols-3`
+  - 置かれる場所の幅でレイアウトを変える部品は、prop を増やさず container query（`@container` / `@xl:`）で切り替える（例: TaskForm は追加フォームでは横並び、列の中の編集フォームでは縦並び）
+- **見た目の確認**: UI を変えたら Playwright MCP で次を確認する。
+  - デスクトップ幅（1280px）とモバイル幅（375px）。モバイルで横スクロールが出ないこと
+  - ライトとダーク（`browser_emulate_media`）。切り替え直後はトランジション中で色が崩れて写るので、少し待ってから撮る
+  - スクリーンショットは `.playwright-mcp/` に保存する（MCP がそれ以外に書き込めないため）
+
 ## Supabase
 
 - プロジェクト: `task-kanban`（project ref: `fmvvwvwlctbyjmsdnixv`、リージョン: `ap-northeast-1`）。スキーマ確認・マイグレーション・型生成は Supabase MCP で行う。
@@ -107,13 +140,14 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
 - **Server Action の戻り値**: 例外を投げずに `ActionResult`（`{ ok: true } | { ok: false, error: string }`）を返す。UI は `error` を `role="alert"` で表示する。
   - エラーメッセージは日本語で書き、DB の生のエラーは画面に出さない
 - **DB の行とアプリの型**: DB は snake_case（`created_at`）、アプリの `Task` 型は camelCase（`createdAt`）。変換は `getTasks()` で行い、想定外の status の行は除外する。
-- **ステータスを追加・変更するとき**: 次の2か所を必ずそろえる。表示する列・ラベル・件数・選択肢は `TASK_STATUSES` から自動で作られる。
+- **ステータスを追加・変更するとき**: 次の3か所を必ずそろえる。表示する列・ラベル・件数・選択肢は `TASK_STATUSES` から自動で作られる。
   - `@/lib/tasks` の `TASK_STATUSES`
   - DB の `tasks.status` の check 制約（マイグレーション）
+  - `TaskBoard.tsx` の `statusAccents`（列のアクセントカラー。足りないと型エラーになる）
 - **UI の決まりごと**:
   - 列見出し（`h2`）にはステータス名だけを入れる。件数バッジ（`n件`）は `h2` の外に置く。列の名前（region 名）がテストで使われているため
   - 削除などの取り消せない操作は、`ConfirmDialog` で確認してから実行する
-  - スタイルは Tailwind で、`dark:` のスタイルも付ける
+  - 見た目は「デザインルール」に従う。部品を変えるときも、テストで使うロールとアクセシブルな名前（「UI テストの書き方」参照）は保つ
 
 ## テスト
 
