@@ -8,6 +8,7 @@ Next.js + Supabaseで構築し、Vercelにデプロイする。
 - Next.js  (App router)
 - TypeScript
 - Supabase (データベース)
+- Tailwind CSS v4 + shadcn/ui（ベースは Base UI、アイコンは lucide-react）
 - Vitest + Testing Library (テスト)
 - Vercel (デプロイ)
 
@@ -19,7 +20,9 @@ src/
 │  ├ layout.tsx	# 共通レイアウト
 │  └ globals.css	# グローバルスタイル
 ├ components/		# クライアントコンポーネント（TaskBoard / TaskCard / TaskForm / ConfirmDialog）
+│  └ ui/		# shadcn/ui の CLI で追加したコンポーネント（button など）
 ├ lib/
+│  ├ utils.ts	# shadcn/ui の cn ユーティリティ（`cn` パッケージの再エクスポート）
 │  ├ supabase.ts	# Supabase クライアント（publishable key）
 │  ├ supabase-server.ts	# サーバー専用 Supabase クライアント（secret key）
 │  ├ database.types.ts	# Supabase MCP で生成した DB の型
@@ -39,6 +42,8 @@ npm test           # Vitest (watch モード)
 npm run test:run   # Vitest を1回だけ実行
 npx vitest run __tests__/page.test.tsx   # 単一ファイルを実行
 npx vitest run -t "テスト名"              # テスト名で絞り込み
+
+npx shadcn@latest add <名前>              # shadcn/ui のコンポーネントを src/components/ui/ に追加
 ```
 
 ## 構成
@@ -47,6 +52,18 @@ npx vitest run -t "テスト名"              # テスト名で絞り込み
 - **Tailwind CSS v4 は PostCSS ではなく Turbopack ローダー経由**で読み込んでいる（`next.config.ts` の `turbopack.rules` で `*.css` に `@tailwindcss/turbopack` を適用）。`postcss.config` は存在しない。テーマ変数は `src/app/globals.css` の `@theme inline` で定義。
 - `next.config.ts` で `cacheComponents: true` と `partialPrefetching: true` を有効化している。データ取得やキャッシュの書き方はこれらの前提に従うこと（詳細は同梱ドキュメント参照）。
 - `LayoutProps<"/">` などのルート型はグローバルに生成される型ヘルパーを使っている（import 不要）。
+
+## shadcn/ui
+
+- 設定は `components.json`（style `base-nova`、`rsc: true`、baseColor `neutral`、CSS 変数を使う）。プリミティブは Radix ではなく `@base-ui/react`。
+- コンポーネントは `npx shadcn@latest add <名前>` で `src/components/ui/` に追加する。手で一から書かない。
+  - 追加したファイルは自分のコードとして扱い、必要に応じて編集してよい。
+  - `src/components/ui/` は `"use client"` のコンポーネントから import してよい。
+- クラス名の結合には `cn`（`@/lib/utils`）を使う。
+- テーマの色・角丸は `src/app/globals.css` の CSS 変数（`--background` / `--primary` など）と `@theme inline` で定義している。色を足すときは `:root` とダーク用の両方に書く。
+- **CLI が出力した `globals.css` から変えている点**（`init` / `add` で `globals.css` が書き換わったら、この2点が戻っていないか確認する）:
+  - ダークモードは `.dark` クラスではなく `@media (prefers-color-scheme: dark)` で切り替える。`@custom-variant dark (&:is(.dark *))` は書かない（既存の `dark:` スタイルが効かなくなるため）。
+  - `--font-sans` / `--font-heading` は `layout.tsx` の `--font-geist-sans` を参照する（CLI は `var(--font-sans)` と自分自身を参照させてしまう）。
 
 ## Supabase
 
