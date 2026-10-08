@@ -1,6 +1,11 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DESCRIPTION_MAX_LENGTH,
   TASK_STATUSES,
@@ -51,77 +56,66 @@ export function TaskForm({
     onSuccess?.();
   }
 
+  // 幅の広い場所（追加フォーム）ではタイトルとステータスを横に並べる
   return (
-    <form aria-label={label} onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-title`} className="text-sm font-medium">
-          タイトル
-        </label>
-        <input
-          id={`${id}-title`}
-          type="text"
-          required
-          maxLength={TITLE_MAX_LENGTH}
-          value={values.title}
-          onChange={(event) => setValues({ ...values, title: event.target.value })}
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-900"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-description`} className="text-sm font-medium">
-          説明
-        </label>
-        <textarea
-          id={`${id}-description`}
-          rows={2}
-          maxLength={DESCRIPTION_MAX_LENGTH}
-          value={values.description}
-          onChange={(event) => setValues({ ...values, description: event.target.value })}
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-900"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-status`} className="text-sm font-medium">
-          ステータス
-        </label>
-        <select
-          id={`${id}-status`}
-          value={values.status}
-          onChange={(event) => {
-            const status = event.target.value;
-            if (isTaskStatus(status)) setValues({ ...values, status });
-          }}
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-900"
-        >
-          {TASK_STATUSES.map((status) => (
-            <option key={status.value} value={status.value}>
-              {status.label}
-            </option>
-          ))}
-        </select>
+    <form aria-label={label} onSubmit={handleSubmit} className="@container">
+      <div className="grid gap-4 @xl:grid-cols-[1fr_12rem]">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${id}-title`}>タイトル</Label>
+          <Input
+            id={`${id}-title`}
+            type="text"
+            required
+            maxLength={TITLE_MAX_LENGTH}
+            placeholder="やることを入力"
+            value={values.title}
+            onChange={(event) => setValues({ ...values, title: event.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${id}-status`}>ステータス</Label>
+          <NativeSelect
+            id={`${id}-status`}
+            className="w-full"
+            value={values.status}
+            onChange={(event) => {
+              const status = event.target.value;
+              if (isTaskStatus(status)) setValues({ ...values, status });
+            }}
+          >
+            {TASK_STATUSES.map((status) => (
+              <NativeSelectOption key={status.value} value={status.value}>
+                {status.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </div>
+        <div className="flex flex-col gap-2 @xl:col-span-2">
+          <Label htmlFor={`${id}-description`}>説明</Label>
+          <Textarea
+            id={`${id}-description`}
+            rows={2}
+            maxLength={DESCRIPTION_MAX_LENGTH}
+            placeholder="詳細（任意）"
+            value={values.description}
+            onChange={(event) => setValues({ ...values, description: event.target.value })}
+          />
+        </div>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="mt-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {submitLabel}
-        </button>
+      <div className="mt-4 flex justify-end gap-2">
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
-          >
+          <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル
-          </button>
+          </Button>
         )}
+        <Button type="submit" disabled={isPending}>
+          {submitLabel}
+        </Button>
       </div>
     </form>
   );
