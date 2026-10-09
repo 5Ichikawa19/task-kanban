@@ -19,7 +19,7 @@ src/
 │  ├ actions.ts	# タスクの追加・更新・削除の Server Action
 │  ├ layout.tsx	# 共通レイアウト
 │  └ globals.css	# グローバルスタイル
-├ components/		# クライアントコンポーネント（TaskBoard / TaskCard / TaskForm / ConfirmDialog）
+├ components/		# クライアントコンポーネント（下記「コンポーネントの分担」参照）
 │  └ ui/		# shadcn/ui の CLI で追加したコンポーネント（button など）
 ├ lib/
 │  ├ utils.ts	# shadcn/ui の cn ユーティリティ（`cn` パッケージの再エクスポート）
@@ -72,7 +72,7 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
   - ステータス選択は `Select` ではなく `NativeSelect`（中身はネイティブ `<select>`）を使う。テストの `user.selectOptions` と `HTMLSelectElement.value` をそのまま使えるようにするため
 - **色**: テーマ変数のユーティリティ（`bg-card` / `bg-muted` / `text-muted-foreground` / `text-destructive` / `ring-foreground/10` など）を使う。`zinc-*` などのパレット色を直接書かない。
   - テーマ変数はダークモードで自動で切り替わるので、`dark:` は透明度の調整など必要なときだけ付ける
-  - 例外はステータスのアクセントカラー（Todo=sky / In Progress=amber / Done=emerald）。`TaskBoard.tsx` の `statusAccents`（`Record<TaskStatus, ...>`）にまとめ、パレット色を使うので `dark:` も必ず付ける
+  - 例外はステータスのアクセントカラー（Todo=sky / In Progress=amber / Done=emerald）。`TaskColumn.tsx` の `statusAccents`（`Record<TaskStatus, ...>`）にまとめ、パレット色を使うので `dark:` も必ず付ける
 - **面の重なり**（奥から手前へ）:
   - ページ: `bg-muted/30`（ダークは `bg-background`）、ヘッダーは `border-b bg-background/80 backdrop-blur`
   - 列: `rounded-xl bg-muted/60 ring-1 ring-foreground/5`（ダークは `bg-muted/30`）、上端にアクセントカラーの帯
@@ -133,7 +133,15 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
 
 - **データの流れ**:
   - 表示: `page.tsx` の `TaskBoardLoader`（async、`<Suspense>` 内）→ `getTasks()` → `TaskBoard`（client）→ 列ごとの `TaskColumn` → `TaskCard`
-  - 変更: `TaskForm` / `TaskCard` → Server Action（`createTask` / `updateTask(id, input)` / `deleteTask(id)`）→ `updateTag("tasks")` → 再描画
+  - 変更: `TaskCreateCard` / `TaskCard` → Server Action（`createTask` / `updateTask(id, input)` / `deleteTask(id)`）→ `updateTag("tasks")` → 再描画
+- **コンポーネントの分担**（`src/components/`）:
+  - `TaskBoard`: 追加カードと列を並べるだけ
+  - `TaskCreateCard`: 「新しいタスク」のカード。`createTask` を呼ぶ追加フォームを持つ
+  - `TaskColumn`: 1列分（見出し・件数・空の表示・カード一覧）と `statusAccents`
+  - `TaskCard`: 1件分の表示・編集・ステータス変更・削除の状態を持つ。編集・削除ボタンは `TaskCardActions`
+  - `TaskForm`: 追加・編集で共用する入力フォーム（Server Action は `onSubmit` で受け取る）
+  - 共通部品: `TaskStatusSelect`（ステータスの選択肢。`onValueChange` は `TaskStatus` だけを渡す）/ `ErrorMessage`（`role="alert"` のエラー表示）/ `ConfirmDialog`
+  - `TaskBoardSkeleton`: 読み込み中の表示（`page.tsx` の `<Suspense>` の fallback。`"use client"` なし）
 - **サーバー専用とクライアント共用の分離**:
   - `"use client"` のコンポーネントから import してよいのは `@/lib/tasks`（型・定数）と `@/app/actions` だけ
   - `@/lib/supabase-server` と `@/lib/task-queries` はサーバー専用。client から import すると secret key を使うモジュールがバンドルに入るので禁止
@@ -143,7 +151,7 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
 - **ステータスを追加・変更するとき**: 次の3か所を必ずそろえる。表示する列・ラベル・件数・選択肢は `TASK_STATUSES` から自動で作られる。
   - `@/lib/tasks` の `TASK_STATUSES`
   - DB の `tasks.status` の check 制約（マイグレーション）
-  - `TaskBoard.tsx` の `statusAccents`（列のアクセントカラー。足りないと型エラーになる）
+  - `TaskColumn.tsx` の `statusAccents`（列のアクセントカラー。足りないと型エラーになる）
 - **UI の決まりごと**:
   - 列見出し（`h2`）にはステータス名だけを入れる。件数バッジ（`n件`）は `h2` の外に置く。列の名前（region 名）がテストで使われているため
   - 削除などの取り消せない操作は、`ConfirmDialog` で確認してから実行する
@@ -157,7 +165,8 @@ npx shadcn@latest add <名前>              # shadcn/ui のコンポーネント
   - `page.test.tsx` は `@/lib/supabase-server` をモックし、見出しだけを確認している
 - **テストファイル**:
   - `actions.test.ts`: Server Action の入力チェック・境界値・DB エラー
-  - `TaskBoard.test.tsx`: 一覧・件数・追加・編集・ステータス変更・削除の画面操作
+  - `TaskBoard.test.tsx`: 一覧・件数・追加・編集・ステータス変更・削除の画面操作（結合テスト）
+  - `TaskColumn` / `TaskCreateCard` / `TaskCardActions` / `TaskStatusSelect` / `ErrorMessage` / `TaskBoardSkeleton` の `.test.tsx`: 各部品単体の振る舞い
   - `page.test.tsx`: トップページ
 - **進め方**: 機能追加はテストを先に書き、失敗することを確認してから実装する（TDD）。
 - **UI テストの書き方**:

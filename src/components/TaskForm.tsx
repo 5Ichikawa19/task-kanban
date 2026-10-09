@@ -4,13 +4,12 @@ import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import {
   DESCRIPTION_MAX_LENGTH,
-  TASK_STATUSES,
   TITLE_MAX_LENGTH,
-  isTaskStatus,
   type ActionResult,
   type TaskInput,
 } from "@/lib/tasks";
@@ -74,21 +73,12 @@ export function TaskForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${id}-status`}>ステータス</Label>
-          <NativeSelect
+          <TaskStatusSelect
             id={`${id}-status`}
             className="w-full"
             value={values.status}
-            onChange={(event) => {
-              const status = event.target.value;
-              if (isTaskStatus(status)) setValues({ ...values, status });
-            }}
-          >
-            {TASK_STATUSES.map((status) => (
-              <NativeSelectOption key={status.value} value={status.value}>
-                {status.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            onValueChange={(status) => setValues({ ...values, status })}
+          />
         </div>
         <div className="flex flex-col gap-2 @xl:col-span-2">
           <Label htmlFor={`${id}-description`}>説明</Label>
@@ -102,11 +92,7 @@ export function TaskForm({
           />
         </div>
       </div>
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-3" />
       <div className="mt-4 flex justify-end gap-2">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
