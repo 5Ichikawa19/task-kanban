@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { SquareKanban } from "lucide-react";
 import { TaskBoard } from "@/components/TaskBoard";
+import { TaskBoardSkeleton } from "@/components/TaskBoardSkeleton";
 import { getTasks } from "@/lib/task-queries";
 
 export default function Home() {
@@ -18,7 +19,7 @@ export default function Home() {
         </div>
       </header>
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
-        <Suspense fallback={<BoardSkeleton />}>
+        <Suspense fallback={<TaskBoardSkeleton />}>
           <TaskBoardLoader />
         </Suspense>
       </main>
@@ -29,18 +30,4 @@ export default function Home() {
 async function TaskBoardLoader() {
   const tasks = await getTasks();
   return <TaskBoard tasks={tasks} />;
-}
-
-function BoardSkeleton() {
-  return (
-    <div className="flex flex-col gap-8">
-      <p className="sr-only">読み込み中…</p>
-      <div aria-hidden="true" className="h-56 animate-pulse rounded-xl bg-muted" />
-      <div aria-hidden="true" className="grid gap-4 md:grid-cols-3">
-        {[0, 1, 2].map((index) => (
-          <div key={index} className="h-48 animate-pulse rounded-xl bg-muted" />
-        ))}
-      </div>
-    </div>
-  );
 }

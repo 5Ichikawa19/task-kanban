@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import { deleteTask, updateTask } from "@/app/actions";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { TaskCardActions } from "@/components/TaskCardActions";
 import { TaskForm } from "@/components/TaskForm";
-import { Button } from "@/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { cn } from "@/lib/utils";
-import { TASK_STATUSES, isTaskStatus, type Task, type TaskInput } from "@/lib/tasks";
+import type { Task, TaskInput, TaskStatus } from "@/lib/tasks";
 
 type TaskCardProps = {
   task: Task;
@@ -28,8 +28,7 @@ export function TaskCard({ task }: TaskCardProps) {
     status: task.status,
   };
 
-  async function handleStatusChange(status: string) {
-    if (!isTaskStatus(status)) return;
+  async function handleStatusChange(status: TaskStatus) {
     setError(null);
     const result = await updateTask(task.id, { ...currentValues, status });
     if (!result.ok) setError(result.error);
@@ -66,50 +65,24 @@ export function TaskCard({ task }: TaskCardProps) {
     >
       <div className="flex items-start gap-2">
         <h3 className="min-w-0 flex-1 font-medium leading-snug break-words">{task.title}</h3>
-        <div className="-mt-1 -mr-1.5 flex shrink-0 gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover/task:opacity-100 md:group-focus-within/task:opacity-100">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`「${task.title}」を編集`}
-            onClick={() => setIsEditing(true)}
-          >
-            <Pencil />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`「${task.title}」を削除`}
-            onClick={() => setIsConfirmingDelete(true)}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-          >
-            <Trash2 />
-          </Button>
-        </div>
+        <TaskCardActions
+          title={task.title}
+          onEdit={() => setIsEditing(true)}
+          onDelete={() => setIsConfirmingDelete(true)}
+        />
       </div>
       {task.description && (
         <p className="whitespace-pre-wrap break-words text-muted-foreground">
           {task.description}
         </p>
       )}
-      <NativeSelect
+      <TaskStatusSelect
         size="sm"
         aria-label={`「${task.title}」のステータス`}
         value={task.status}
-        onChange={(event) => handleStatusChange(event.target.value)}
-      >
-        {TASK_STATUSES.map((status) => (
-          <NativeSelectOption key={status.value} value={status.value}>
-            {status.label}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
-      {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
-      )}
+        onValueChange={handleStatusChange}
+      />
+      <ErrorMessage message={error} />
       {isConfirmingDelete && (
         <ConfirmDialog
           message={`「${task.title}」を削除しますか？`}
